@@ -30,7 +30,7 @@ export default function WinWindow({ id, title, icon, isActive, onFocus, onClose,
   
   return (
     <div 
-      className={`absolute flex flex-col bg-win-gray win-border-outset font-win transition-all ${isActive ? 'z-50' : 'z-10'} ${className}`} 
+      className={`absolute flex flex-col xp-window font-win transition-all ${isActive ? 'z-50 xp-window-active' : 'z-10 xp-window-inactive'} ${className}`} 
       style={isMobile ? {
         left: '4px',
         top: '4px',
@@ -49,22 +49,30 @@ export default function WinWindow({ id, title, icon, isActive, onFocus, onClose,
     >
       {/* Title bar */}
       <div className={`win-titlebar ${!isActive ? 'inactive' : ''}`}>
-        <div className="flex items-center gap-1">
-          {icon && <div className="w-3.5 h-3.5 flex items-center justify-center">{icon}</div>}
-          <span className="truncate max-w-[180px] sm:max-w-none">{title}</span>
+        <div className="flex items-center gap-1.5 font-bold tracking-wide text-[12px]">
+          {icon && <div className="w-4 h-4 flex items-center justify-center scale-110 shrink-0">{icon}</div>}
+          <span className="truncate max-w-[180px] sm:max-w-none text-white drop-shadow-md">{title}</span>
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1.5">
           <button 
             type="button"
-            className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[8px]" 
-            style={{padding:0}} 
+            className="xp-btn-min shrink-0" 
             onClick={(e) => { e.stopPropagation(); onMinimize?.(); }}
             title="Minimizar"
           >
-            <Minus size={10} />
+            <Minus size={11} strokeWidth={3} />
           </button>
-          <button className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[8px]" style={{padding:0}} disabled><Square size={8} strokeWidth={3} /></button>
-          <button className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[10px]" style={{padding:0, marginLeft: 2}} onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={10}/></button>
+          <button type="button" className="xp-btn-max shrink-0" disabled>
+            <Square size={9} strokeWidth={3} />
+          </button>
+          <button 
+            type="button" 
+            className="xp-btn-close shrink-0" 
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            title="Cerrar"
+          >
+            <X size={11} strokeWidth={3} />
+          </button>
         </div>
       </div>
 

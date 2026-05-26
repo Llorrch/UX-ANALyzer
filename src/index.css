@@ -2,118 +2,189 @@
 @import "tailwindcss";
 
 @theme {
-  --color-win-gray: #c0c0c0;
-  --color-win-desktop: #008080;
-  --color-win-title: #000080;
+  --color-win-gray: #ece9d8;
+  --color-win-desktop: #245edb;
+  --color-win-title: #0054e3;
+}
+
+html, body, #root {
+  height: 100dvh;
+  width: 100dvw;
+  margin: 0;
+  padding: 0;
+  background: transparent;
 }
 
 body {
-  background-color: var(--color-win-desktop);
+  background: url('https://i.pinimg.com/1200x/7f/59/58/7f59589dbea80f8702d0790698db6d8d.jpg') no-repeat center center fixed !important;
+  background-size: cover !important;
   color: black;
-  margin: 0;
   overflow: hidden;
-  font-family: 'Tahoma', 'MS Sans Serif', sans-serif;
+  font-family: 'Tahoma', 'Segoe UI', system-ui, sans-serif;
 }
 
 .font-win {
-  font-family: 'Tahoma', 'MS Sans Serif', sans-serif;
+  font-family: 'Tahoma', 'Segoe UI', system-ui, sans-serif;
   font-size: 11px;
 }
 
-/* Win98 3D Borders */
+/* Windows XP Outer Shell classes overriding Win98 borders */
 .win-border-outset {
-  border: 1px solid;
-  border-top-color: #dfdfdf;
-  border-left-color: #dfdfdf;
-  border-right-color: #000000;
-  border-bottom-color: #000000;
-  box-shadow: inset 1px 1px #ffffff, inset -1px -1px #808080;
+  border: 1px solid #7f9db9;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.12);
+  background-color: #f0ede1;
 }
 
 .win-border-inset {
-  border: 1px solid;
-  border-top-color: #808080;
-  border-left-color: #808080;
-  border-right-color: #ffffff;
-  border-bottom-color: #ffffff;
-  box-shadow: inset 1px 1px #000000, inset -1px -1px #dfdfdf;
+  border: 1px solid #7f9db9;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.1);
   background-color: #ffffff;
 }
 
 .win-border-inset-text {
-  border: 1px solid;
-  border-top-color: #808080;
-  border-left-color: #808080;
-  border-right-color: #dfdfdf;
-  border-bottom-color: #dfdfdf;
+  border: 1px solid #7f9db9;
   background-color: #ffffff;
 }
 
-/* Win98 Button */
-.win-btn {
-  background-color: #c0c0c0;
-  border: 1px solid;
-  border-top-color: #ffffff;
-  border-left-color: #ffffff;
-  border-right-color: #000000;
-  border-bottom-color: #000000;
-  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf;
-  padding: 2px 6px;
-  color: black;
-  font-size: 11px;
-  text-align: center;
-}
-.win-btn:active {
-  border-top-color: #000000;
-  border-left-color: #000000;
-  border-right-color: #ffffff;
-  border-bottom-color: #ffffff;
-  box-shadow: inset 1px 1px #808080;
-  padding: 3px 5px 1px 7px;
-}
-.win-btn:disabled, .win-btn:disabled:active {
-  color: #808080;
-  text-shadow: 1px 1px 0 #ffffff;
-  border-top-color: #ffffff;
-  border-left-color: #ffffff;
-  border-right-color: #000000;
-  border-bottom-color: #000000;
-  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf;
-  padding: 2px 6px;
+/* Genuine Luna Blue Windows XP Window Styles */
+.xp-window {
+  background-color: #ece9d8;
+  border: 3px solid #0054e3;
+  border-top: none;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
 }
 
-/* WinTitlebar */
+.xp-window-active {
+  border-color: #0054e3;
+}
+
+.xp-window-inactive {
+  border-color: #7697c1;
+}
+
+/* Windows XP Classic Shiny Button */
+.win-btn {
+  background: linear-gradient(to bottom, #fcfcfc 0%, #f4f4f0 40%, #e1dfd9 51%, #e1dfd9 85%, #cfcbc3 100%);
+  border: 1px solid #003c74;
+  border-radius: 3px;
+  padding: 3px 10px;
+  color: #000;
+  font-family: 'Tahoma', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.15);
+}
+
+.win-btn:hover {
+  border-color: #f7a01a;
+  box-shadow: inset 0 0 3px #f7a01a;
+}
+
+.win-btn:active {
+  background: linear-gradient(to bottom, #e1dfd9 0%, #cfcbc3 50%, #e1dfd9 100%);
+  border-color: #f7a01a;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.win-btn:disabled {
+  background: #f4f4f0;
+  border-color: #aca8aa;
+  color: #aca8aa;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Windows XP Title Bar Style */
 .win-titlebar {
-  background: navy;
+  background: linear-gradient(to right, #0054e3 0%, #277bf4 100%);
   color: white;
-  padding: 2px 2px 2px 4px;
+  padding: 6px 10px;
   font-weight: bold;
+  font-family: 'Tahoma', sans-serif;
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-.win-titlebar.inactive {
-  background: #808080;
+  border-bottom: 1px solid #002d96;
 }
 
-/* Hide standard scrollbars for terminal feels */
+.win-titlebar.inactive {
+  background: linear-gradient(to right, #7697c1 0%, #8caad6 100%);
+  border-bottom-color: #5c7599;
+}
+
+/* Windows XP Control Buttons (Min, Max, Close) */
+.xp-btn-min, .xp-btn-max, .xp-btn-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 3px;
+  border: 1px solid #ffffff;
+  color: white;
+  cursor: pointer;
+  box-shadow: inset -1px -1px 1px rgba(0, 0, 0, 0.2), 0px 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.xp-btn-min {
+  background: linear-gradient(to bottom, #72a4ff 0%, #2f72f7 15%, #134ef5 85%, #032db0 100%);
+  border-color: #042cb4;
+}
+
+.xp-btn-min:hover {
+  filter: brightness(1.15);
+}
+
+.xp-btn-min:active {
+  background: #11388b;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.xp-btn-max {
+  background: linear-gradient(to bottom, #72a4ff 0%, #2f72f7 15%, #134ef5 85%, #032db0 100%);
+  border-color: #042cb4;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.xp-btn-close {
+  background: linear-gradient(to bottom, #f37c56 0%, #dd3813 15%, #c72100 85%, #930400 100%);
+  border-color: #7c1200;
+  font-weight: bold;
+}
+
+.xp-btn-close:hover {
+  background: linear-gradient(to bottom, #ff9b77 0%, #ff5c39 15%, #e13309 85%, #b40600 100%);
+  border-color: #920400;
+}
+
+.xp-btn-close:active {
+  background: #6a0000;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Chrome-like elegant scrollbars */
 ::-webkit-scrollbar {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #dfdfdf;
-  border-left: 1px solid #ffffff;
-  border-top: 1px solid #ffffff;
+  background: #f1efdf;
+  border: 1px solid #dfdeb5;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #c0c0c0;
-  border: 1px solid;
-  border-top-color: #ffffff;
-  border-left-color: #ffffff;
-  border-right-color: #000000;
-  border-bottom-color: #000000;
-  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf;
+  background: linear-gradient(to right, #e6e5d6 0%, #cfcdbf 100%);
+  border: 1px solid #aba896;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, #f2f1e8 0%, #dedccb 100%);
 }
 
 @keyframes shake {

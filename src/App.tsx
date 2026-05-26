@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import ArthurChat from './components/ArthurChat';
 import WinWindow from './components/WinWindow';
 import { Critique, ChatMessage } from './types';
-import { Terminal, Crosshair, Swords, Globe, Settings, Volume2 } from 'lucide-react';
+import { Terminal, Settings, Volume2, Globe, Brain, Car, Palette, TrendingUp } from 'lucide-react';
 
 let globalAudioContext: AudioContext | null = null;
 let currentAudioSource: AudioBufferSourceNode | null = null;
@@ -18,6 +18,135 @@ function unlockAudio() {
   if (globalAudioContext && globalAudioContext.state === 'suspended') {
     globalAudioContext.resume();
   }
+}
+
+function playXpBootSound() {
+  unlockAudio();
+  if (!globalAudioContext) return;
+  
+  const ctx = globalAudioContext;
+  const now = ctx.currentTime;
+  
+  // Create master node with lowpass filter for warm synth analog character
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0, now);
+  masterGain.gain.linearRampToValueAtTime(0.40, now + 0.15);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
+  
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1200, now);
+  filter.frequency.exponentialRampToValueAtTime(2600, now + 1.2);
+  filter.frequency.exponentialRampToValueAtTime(600, now + 4.6);
+  
+  masterGain.connect(filter);
+  filter.connect(ctx.destination);
+
+  // Helper inside to generate detuned pad voices
+  const createPadVoice = (freq: number, startTime: number, duration: number, volume: number) => {
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const voiceGain = ctx.createGain();
+    
+    // Triangle + Sine combination creates a very rich Windows XP retro organ-pad character
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(freq, startTime);
+    osc1.detune.setValueAtTime(-10, startTime);
+    
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq, startTime);
+    osc2.detune.setValueAtTime(10, startTime);
+    
+    voiceGain.gain.setValueAtTime(0, startTime);
+    voiceGain.gain.linearRampToValueAtTime(volume * 0.7, startTime + 0.8);
+    voiceGain.gain.linearRampToValueAtTime(volume * 0.4, startTime + 2.4);
+    voiceGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    
+    osc1.connect(voiceGain);
+    osc2.connect(voiceGain);
+    voiceGain.connect(masterGain);
+    
+    osc1.start(startTime);
+    osc1.stop(startTime + duration);
+    osc2.start(startTime);
+    osc2.stop(startTime + duration);
+  };
+
+  // Base chords (Ab major / Eb major warm bed)
+  const padFreqs = [
+    77.78,   // Eb2
+    103.83,  // Ab2
+    155.56,  // Eb3
+    207.65,  // Ab3
+    261.63,  // C4
+    311.13,  // Eb4
+    415.30,  // Ab4
+    523.25,  // C5
+  ];
+  
+  padFreqs.forEach((freq, idx) => {
+    const vol = idx < 2 ? 0.35 : idx < 5 ? 0.22 : 0.12;
+    createPadVoice(freq, now, 4.8, vol);
+  });
+
+  // Second layer of moving chords resolving around the dominant 1s later
+  const resolveFreqs = [
+    116.54,  // Bb2
+    233.08,  // Bb3
+    311.13,  // Eb4
+    392.00,  // G4
+    466.16,  // Bb4
+    587.33,  // D5
+  ];
+  
+  resolveFreqs.forEach((freq, idx) => {
+    const vol = idx < 2 ? 0.25 : 0.12;
+    createPadVoice(freq, now + 0.8, 4.0, vol);
+  });
+
+  // Chime sparkling arpeggio notes
+  // Eb5 -> Bb5 -> Eb6 -> F6 -> G6 -> Bb6 -> Eb7
+  const chimeNotes = [
+    { freq: 622.25,  time: 0.00 },
+    { freq: 932.33,  time: 0.16 },
+    { freq: 1244.51, time: 0.32 },
+    { freq: 1396.91, time: 0.48 },
+    { freq: 1567.98, time: 0.64 },
+    { freq: 1864.66, time: 0.80 },
+    { freq: 2489.02, time: 1.05 }
+  ];
+
+  chimeNotes.forEach((note, idx) => {
+    const oscChime = ctx.createOscillator();
+    const chimeGain = ctx.createGain();
+    const delay = ctx.createDelay();
+    const delayGain = ctx.createGain();
+    
+    oscChime.type = 'sine';
+    oscChime.frequency.setValueAtTime(note.freq, now + note.time);
+    
+    const attack = 0.01;
+    const decay = idx === chimeNotes.length - 1 ? 2.5 : 1.2;
+    
+    chimeGain.gain.setValueAtTime(0, now + note.time);
+    chimeGain.gain.linearRampToValueAtTime(idx === chimeNotes.length - 1 ? 0.35 : 0.22, now + note.time + attack);
+    chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + decay);
+    
+    // Cozy echoes for the nostalgic shine
+    delay.delayTime.setValueAtTime(0.28, now + note.time);
+    delayGain.gain.setValueAtTime(0.22, now + note.time);
+    
+    oscChime.connect(chimeGain);
+    chimeGain.connect(masterGain);
+    
+    chimeGain.connect(delay);
+    delay.connect(delayGain);
+    delayGain.connect(masterGain);
+    delayGain.connect(delay);
+    
+    oscChime.start(now + note.time);
+    oscChime.stop(now + note.time + decay + 0.5);
+  });
 }
 
 export default function App() {
@@ -326,40 +455,71 @@ export default function App() {
   const isAnalyzerOpen = openWindows.includes('analyzer');
 
   return (
-    <div className="w-[100dvw] h-[100dvh] flex flex-col font-win text-black" style={{ backgroundColor: '#008080' }}>
+    <div className="w-[100dvw] h-[100dvh] flex flex-col font-win text-black bg-transparent">
       
       {/* Desktop Area */}
       <div className="flex-1 relative overflow-hidden" onClick={() => setActiveWindow(null as any)}>
         {/* Desktop Icons */}
-        <div className="flex flex-col gap-6 p-4 absolute top-0 left-0 w-32 h-full z-0">
-          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={(e) => {e.stopPropagation(); openWindow('analyzer')}}>
+        <div className="flex flex-col gap-5 p-4 absolute top-0 left-0 w-32 h-full z-0 select-none">
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-90" onClick={(e) => {e.stopPropagation(); openWindow('analyzer')}}>
             <Terminal size={36} className={`text-white p-1 ${activeWindow === 'analyzer' ? 'bg-blue-800' : ''}`} />
             <span className={`text-white text-center font-bold text-[11px] leading-tight px-1 ${activeWindow === 'analyzer' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 1px black' }}>UX ANALyzer</span>
           </div>
 
-          <div className="flex flex-col items-center gap-1 cursor-pointer mt-2" onClick={(e) => {e.stopPropagation(); openWindow('settings')}}>
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-90" onClick={(e) => {e.stopPropagation(); openWindow('settings')}}>
             <div className={`p-1 ${activeWindow === 'settings' ? 'bg-blue-800' : ''}`}>
               <Settings size={34} className="text-white" />
             </div>
             <span className={`text-white text-center font-bold text-[11px] leading-tight px-1 ${activeWindow === 'settings' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 1px black' }}>Panel de Control</span>
           </div>
 
-          <div className="mt-8"></div>
+          <div className="w-full border-t border-dotted border-white/20 my-1"></div>
 
-          <div className="flex flex-col items-center gap-1 cursor-pointer opacity-70">
+          <div className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100" onClick={(e) => { e.stopPropagation(); alert('¡Próximamente disponible! Esta sección se encuentra en construcción.'); }}>
             <Globe size={36} className="text-white p-1 fill-blue-300" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>Internet Explorer</span>
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>Mi página web</span>
           </div>
 
-          <div className="flex flex-col items-center gap-1 cursor-pointer opacity-70">
-            <Crosshair size={36} className="text-black bg-orange-200 rounded-full p-2" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>Counter-Strike</span>
+          <a 
+            href="https://aivaperu.com/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100 group text-decoration-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Brain size={36} className="text-[#ff99b2] p-1 fill-[#ff4d6d]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1 group-hover:underline" style={{ textShadow: '1px 1px 1px black' }}>Aiva Psicólogos</span>
+          </a>
+
+          <a 
+            href="https://autoque.app/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100 group text-decoration-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Car size={36} className="text-[#99ccff] p-1 fill-[#3399ff]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1 group-hover:underline" style={{ textShadow: '1px 1px 1px black' }}>Autoqué</span>
+          </a>
+
+          <div 
+            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100" 
+            onClick={(e) => { e.stopPropagation(); alert('Sitio en construcción civil 🚧 ¡Estoy construyendo mi portafolio, ten paciencia!'); }}
+          >
+            <Palette size={36} className="text-[#ffd166] p-1 fill-[#f4a261]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>Mi portafolio</span>
           </div>
 
-          <div className="flex flex-col items-center gap-1 cursor-pointer opacity-70">
-            <Swords size={36} className="text-yellow-400 p-1" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>WoW TBC</span>
-          </div>
+          <a 
+            href="https://metria.agency/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100 group text-decoration-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <TrendingUp size={36} className="text-[#a7f3d0] p-1 fill-[#10b981]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1 group-hover:underline" style={{ textShadow: '1px 1px 1px black' }}>Mejora tu conversión</span>
+          </a>
         </div>
 
         {/* Windows */}
@@ -522,27 +682,79 @@ export default function App() {
       </div>
 
       {/* Taskbar */}
-      <div className="h-8 bg-win-gray border-t-2 border-t-[#ffffff] flex items-center px-1 gap-2 z-50 text-black">
-        <button className="win-btn font-bold flex items-center gap-1 italic" style={{boxShadow: 'inset -1px -1px #000, inset 1px 1px #fff', textShadow: 'none'}}>
-          <span className="text-[#ea3838]">U</span>
-          <span className="text-[#39FF14]">X</span>
-          <span className="text-blue-800">Inicio</span>
+      <div 
+        className="h-9 flex items-center gap-1 z-50 text-white select-none overflow-hidden relative border-t border-[#0d2e80]"
+        style={{
+          background: 'linear-gradient(to bottom, #245dd7 0%, #2f74e7 12%, #225ad5 85%, #184dbd 100%)',
+          boxShadow: '0 -2px 5px rgba(0,0,0,0.2)'
+        }}
+      >
+        <button 
+          type="button"
+          className="font-bold flex items-center gap-1.5 italic text-white px-4 h-full shrink-0"
+          style={{
+            background: 'linear-gradient(to bottom, #388a10 0%, #61b812 10%, #4cb813 15%, #388a10 85%, #235208 100%)',
+            borderRight: '1.5px solid #1e3a07',
+            borderTopRightRadius: '14px',
+            borderBottomRightRadius: '14px',
+            boxShadow: 'inset 0px 1.5px 2px rgba(255, 255, 255, 0.45), 1px 0 3px rgba(0,0,0,0.3)',
+            textShadow: '1px 1.5px 1px #153006',
+            cursor: 'pointer'
+          }}
+          onClick={() => {
+            playXpBootSound();
+            alert("UX ANALyzer - El Dios del UX en edición Windows XP Luna.");
+          }}
+        >
+          {/* XP start logo flag */}
+          <div className="grid grid-cols-2 gap-0.5 w-3 h-3 scale-110 mr-0.5 relative top-[-0.5px]">
+            <div className="bg-[#f05026] w-1.5 h-1.5 rounded-sm"></div>
+            <div className="bg-[#3cb813] w-1.5 h-1.5 rounded-sm"></div>
+            <div className="bg-[#03a9f4] w-1.5 h-1.5 rounded-sm"></div>
+            <div className="bg-[#ffeb3b] w-1.5 h-1.5 rounded-sm"></div>
+          </div>
+          <span className="text-xs tracking-wider not-italic font-extrabold pr-0.5 lowercase text-white">start</span>
         </button>
-        <div className="h-full w-0 border-l border-gray-400 border-r border-[#ffffff] my-[2px]"></div>
-        <div className="flex items-center gap-1 flex-1 px-1 h-full py-0.5 overflow-hidden">
+
+        <div className="h-full w-0.5 bg-[#1748b5] border-r border-[#3a7fe4]"></div>
+
+        <div className="flex items-center gap-1.5 flex-1 px-2 h-full py-1 overflow-hidden">
           {openWindows.map(w => {
             const isPressed = activeWindow === w && !minimizedWindows.includes(w);
             return (
-              <button key={w} onClick={() => toggleWindowMinimizeRestore(w)} 
-                className={`win-btn text-left flex items-center px-2 py-0 min-w-24 max-w-40 truncate h-6 ${isPressed ? 'bg-gray-300' : ''}`}
-                style={isPressed ? {boxShadow: 'inset 1px 1px #000, inset -1px -1px #dfdfdf', paddingTop: 2, paddingLeft: 8} : {}}
+              <button 
+                key={w} 
+                type="button"
+                onClick={() => toggleWindowMinimizeRestore(w)} 
+                className="text-left flex items-center px-2.5 min-w-28 max-w-44 text-white text-[11px] font-bold rounded-sm h-7 cursor-pointer"
+                style={isPressed ? {
+                  background: '#193f93',
+                  border: '1px solid #112d6a',
+                  boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.45)'
+                } : {
+                  background: 'linear-gradient(to bottom, #3c82eb 0%, #2968db 15%, #1c5dc7 85%, #103ba3 100%)',
+                  border: '1px solid #17429b',
+                  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.25)'
+                }}
               >
-                <div className="w-full truncate">{w === 'analyzer' ? 'UX ANALyzer' : 'Panel de ...'}</div>
+                <div className="w-full truncate drop-shadow-sm flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0 inline-block"></span>
+                  {w === 'analyzer' ? 'UX ANALyzer' : 'Panel de ...'}
+                </div>
               </button>
             );
           })}
         </div>
-        <div className="win-border-inset px-2 flex flex-col justify-center h-6 mr-1 bg-win-gray text-black font-mono relative top-[1px]">
+
+        <div 
+          className="px-3.5 flex items-center justify-center h-full text-white font-mono text-[11px] select-none shrink-0"
+          style={{
+            background: 'linear-gradient(to bottom, #0c4dc5 0%, #0d46b5 100%)',
+            borderLeft: '1px solid #092e80',
+            color: '#def0ff',
+            boxShadow: 'inset 1.5px 0px 1px rgba(255, 255, 255, 0.15)'
+          }}
+        >
           {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
         </div>
       </div>
