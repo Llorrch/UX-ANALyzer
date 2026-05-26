@@ -29,12 +29,20 @@ export default function App() {
   type WindowId = 'analyzer' | 'settings';
   const [openWindows, setOpenWindows] = useState<WindowId[]>(['analyzer']);
   const [activeWindow, setActiveWindow] = useState<WindowId>('analyzer');
-  const [engine, setEngine] = useState<string>('browser');
-  const [lang, setLang] = useState<string>('es-419');
-  const [voiceName, setVoiceName] = useState<string>('Puck');
+  const [minimizedWindows, setMinimizedWindows] = useState<WindowId[]>([]);
+  const [appLanguage, setAppLanguage] = useState<string>(() => localStorage.getItem('app_language') || 'es');
   const [browserVoiceURI, setBrowserVoiceURI] = useState<string>('');
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Custom API keys
+  const [customGeminiKey, setCustomGeminiKey] = useState<string>(() => sessionStorage.getItem('custom_gemini_key') || '');
+  const [adminAccessCode, setAdminAccessCode] = useState<string>(() => localStorage.getItem('admin_access_code') || '');
+  
+  // Free chats counter (up to 5 free chats with the creator's key per device)
+  const [freeChatsCount, setFreeChatsCount] = useState<number>(() => {
+    return Number(localStorage.getItem('free_chats_count')) || 0;
+  });
 
   // Initialize Speech Synthesis voice loading with reactive events (important for macOS and Chrome)
   useEffect(() => {
@@ -91,7 +99,7 @@ export default function App() {
 
       setIsSpeaking(true);
 
-      if (engine === 'browser' && 'speechSynthesis' in window) {
+      if ('speechSynthesis' in window) {
         return new Promise<void>((resolve) => {
            const utterance = new SpeechSynthesisUtterance(cleanText);
            utterance.rate = 1.1;
@@ -103,7 +111,7 @@ export default function App() {
            if (!selectedVoice) {
              // Prioritize macOS premium/enhanced voices for Spanish
              const macPremium = voicesList.find(v => v.lang.toLowerCase().startsWith('es') && (v.name.includes('Premium') || v.name.includes('Enhanced') || ['Monica', 'Paulina', 'Jorge', 'Diego'].some(n => v.name.includes(n))));
-             selectedVoice = macPremium || voicesList.find(v => v.lang.toLowerCase().startsWith(lang.toLowerCase())) || voicesList.find(v => v.lang.toLowerCase().startsWith('es-')) || voicesList[0];
+             selectedVoice = macPremium || voicesList.find(v => v.lang.toLowerCase().startsWith('es-')) || voicesList.find(v => v.lang.toLowerCase().startsWith('es')) || voicesList[0];
              console.log("TTS Browser Mode - Auto-fallback selected voice:", selectedVoice ? `${selectedVoice.name} (${selectedVoice.lang})` : "None");
            } else {
              console.log("TTS Browser Mode - User chosen selected voice:", `${selectedVoice.name} (${selectedVoice.lang})`);
@@ -128,118 +136,58 @@ export default function App() {
            window.speechSynthesis.speak(utterance);
         });
       }
-      
-      // Split into logically complete sentences/phrases
-      const sentences = cleanText
-        .split(/[.!?；;:]+/)
-        .map(s => s.trim())
-        .filter(s => s.length > 2);
-
-      if (sentences.length === 0) return;
-
-      setIsSpeaking(true);
-
-      const audioBuffers: { [index: number]: AudioBuffer } = {};
-      const fetchPromiseCache: { [index: number]: Promise<AudioBuffer | null> } = {};
-
-      const fetchSentenceBuffer = (index: number): Promise<AudioBuffer | null> => {
-        if (index >= sentences.length) return Promise.resolve(null);
-        if (audioBuffers[index]) return Promise.resolve(audioBuffers[index]);
-        if (fetchPromiseCache[index]) return fetchPromiseCache[index];
-
-        const promise = (async () => {
-          try {
-            const response = await fetch('/api/speak', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ textToSpeak: sentences[index] + '.', voiceName, engine, lang })
-            });
-
-            if (!response.ok) return null;
-            const data = await response.json();
-            if (!data.audio || !globalAudioContext) return null;
-
-            const binaryString = atob(data.audio);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-
-            const audioBuffer = await globalAudioContext.decodeAudioData(bytes.buffer);
-            audioBuffers[index] = audioBuffer;
-            return audioBuffer;
-          } catch (e) {
-            console.error(`Error decoding audio for sentence ${index}:`, e);
-            return null;
-          }
-        })();
-
-        fetchPromiseCache[index] = promise;
-        return promise;
-      };
-
-      // Prefetch the first two sentences immediately for ultra fast starting
-      fetchSentenceBuffer(0);
-      if (sentences.length > 1) {
-        fetchSentenceBuffer(1);
-      }
-
-      // Sequential playback chain
-      for (let i = 0; i < sentences.length; i++) {
-        if (mySessionId !== currentSpeechSessionId) return;
-
-        const buffer = await fetchSentenceBuffer(i);
-        if (!buffer) continue;
-
-        if (mySessionId !== currentSpeechSessionId) return;
-
-        // Prefetch upcoming sentences
-        if (i + 1 < sentences.length) {
-          fetchSentenceBuffer(i + 1);
-        }
-        if (i + 2 < sentences.length) {
-          fetchSentenceBuffer(i + 2);
-        }
-
-        await new Promise<void>((resolve) => {
-          if (mySessionId !== currentSpeechSessionId || !globalAudioContext) {
-            resolve();
-            return;
-          }
-
-          const source = globalAudioContext.createBufferSource();
-          source.buffer = buffer;
-          source.connect(globalAudioContext.destination);
-          source.onended = () => {
-            resolve();
-          };
-
-          currentAudioSource = source;
-          source.start(0);
-        });
-      }
-
-      if (mySessionId === currentSpeechSessionId) {
-        setIsSpeaking(false);
-      }
-
     } catch (e) {
       console.error("Speech Synthesis Error:", e);
       setIsSpeaking(false);
     }
-  }, [voiceName, engine, lang, browserVoiceURI]);
+  }, [browserVoiceURI]);
 
-  const handleClearHistory = () => {
-    setMessages([]);
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  const stopSpeaking = useCallback(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      try {
+        const silentUtterance = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(silentUtterance);
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
     currentSpeechSessionId++;
     if (currentAudioSource) {
-      try { currentAudioSource.stop(); } catch(e) {}
+      try { currentAudioSource.stop(); } catch (e) {}
       currentAudioSource = null;
     }
     setIsSpeaking(false);
+  }, []);
+
+  const handleClearHistory = () => {
+    setMessages([]);
+    stopSpeaking();
   };
+
+  const triggerLocalArthurInsult = useCallback((userText: string, insultText: string) => {
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userText,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    const insultMsg: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: insultText,
+      critique: {
+        is_chat: true,
+        chat_response: insultText,
+        es_bueno: false,
+        suspiro: "",
+        roasts: [],
+        veredicto: ""
+      },
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setMessages((prev) => [...prev, userMsg, insultMsg]);
+    speakText(insultText);
+  }, [speakText]);
 
   const handleAnalyzeCritique = async (prompt: string, imageBase64: string | null = null, mimeType: string | null = null) => {
     unlockAudio();
@@ -255,10 +203,14 @@ export default function App() {
     setMessages((prev) => [...prev, userMsg]);
 
     try {
+      const critiqueHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (customGeminiKey) critiqueHeaders['x-gemini-api-key'] = customGeminiKey;
+      if (adminAccessCode) critiqueHeaders['x-admin-code'] = adminAccessCode;
+
       const response = await fetch('/api/critique', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, image: imageBase64, mimeType, customInstructions })
+        headers: critiqueHeaders,
+        body: JSON.stringify({ prompt, image: imageBase64, mimeType, customInstructions, language: appLanguage })
       });
 
       let critiqueData: Critique;
@@ -275,6 +227,15 @@ export default function App() {
         }
       } else {
         critiqueData = await response.json();
+      }
+
+      // Increment free chats count if using default/creator key
+      if (!customGeminiKey) {
+        setFreeChatsCount((prev) => {
+          const nextVal = prev + 1;
+          localStorage.setItem('free_chats_count', String(nextVal));
+          return nextVal;
+        });
       }
 
       const assistantMsg: ChatMessage = {
@@ -327,14 +288,38 @@ export default function App() {
     if (!openWindows.includes(id)) {
       setOpenWindows([...openWindows, id]);
     }
+    setMinimizedWindows(minimizedWindows.filter(w => w !== id));
     setActiveWindow(id);
   };
 
   const closeWindow = (id: WindowId) => {
     setOpenWindows(openWindows.filter(w => w !== id));
+    setMinimizedWindows(minimizedWindows.filter(w => w !== id));
     if (activeWindow === id) {
        const remaining = openWindows.filter(w => w !== id);
        setActiveWindow(remaining.length > 0 ? remaining[0] : null as any);
+    }
+  };
+
+  const minimizeWindow = (id: WindowId) => {
+    if (!minimizedWindows.includes(id)) {
+      setMinimizedWindows([...minimizedWindows, id]);
+    }
+    if (activeWindow === id) {
+       const remaining = openWindows.filter(w => w !== id && !minimizedWindows.includes(w) && w !== id);
+       setActiveWindow(remaining.length > 0 ? remaining[remaining.length - 1] : null as any);
+    }
+  };
+
+  const toggleWindowMinimizeRestore = (id: WindowId) => {
+    if (minimizedWindows.includes(id)) {
+      setMinimizedWindows(minimizedWindows.filter(w => w !== id));
+      setActiveWindow(id);
+    } else if (activeWindow === id) {
+      minimizeWindow(id);
+    } else {
+      setMinimizedWindows(minimizedWindows.filter(w => w !== id));
+      setActiveWindow(id);
     }
   };
 
@@ -349,7 +334,7 @@ export default function App() {
         <div className="flex flex-col gap-6 p-4 absolute top-0 left-0 w-32 h-full z-0">
           <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={(e) => {e.stopPropagation(); openWindow('analyzer')}}>
             <Terminal size={36} className={`text-white p-1 ${activeWindow === 'analyzer' ? 'bg-blue-800' : ''}`} />
-            <span className={`text-white text-center font-bold text-[11px] leading-tight px-1 ${activeWindow === 'analyzer' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 1px black' }}>UX_Analyzer</span>
+            <span className={`text-white text-center font-bold text-[11px] leading-tight px-1 ${activeWindow === 'analyzer' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 1px black' }}>UX ANALyzer</span>
           </div>
 
           <div className="flex flex-col items-center gap-1 cursor-pointer mt-2" onClick={(e) => {e.stopPropagation(); openWindow('settings')}}>
@@ -378,122 +363,137 @@ export default function App() {
         </div>
 
         {/* Windows */}
-        {openWindows.includes('settings') && (
+        {/* Windows */}
+        {openWindows.includes('settings') && !minimizedWindows.includes('settings') && (
           <WinWindow 
              id="settings" title="Panel de Control - Tío UX" icon={<Settings size={12} />}
              isActive={activeWindow === 'settings'} onFocus={() => setActiveWindow('settings')}
              onClose={() => closeWindow('settings')}
-             defaultPosition={{x: 50, y: 50}} width={400} height={350}
+             onMinimize={() => minimizeWindow('settings')}
+             defaultPosition={{x: 50, y: 50}} width={440} height={415}
           >
-             <div className="p-4 bg-win-gray h-full flex flex-col gap-4 text-black text-sm">
-                <div className="flex items-center gap-2 mb-2">
+             <div className="p-3 bg-win-gray h-full flex flex-col gap-3 text-black text-xs">
+                <div className="flex items-center gap-2 mb-1">
                    <Volume2 size={32} className="text-gray-700" />
-                   <h2 className="font-bold text-lg">Opciones de Voz e Idioma</h2>
+                   <div>
+                     <h2 className="font-bold text-sm">Opciones y Configuración</h2>
+                     <p className="text-[10px] text-gray-600">Configura la voz, idioma y llaves de acceso del consultorio virtual.</p>
+                   </div>
                 </div>
                 
-                <fieldset className="win-border-inset p-3 bg-white">
-                   <legend className="bg-win-gray px-1 font-bold">Voz y Tono</legend>
-                   <div className="flex flex-col gap-3 mt-2">
-                      <label className="flex flex-col">
-                        <span className="font-bold mb-1">Motor TTS</span>
-                        <select 
-                          className="win-border-inset p-1 bg-white" 
-                          value={engine} 
-                          onChange={(e) => setEngine(e.target.value)}
-                        >
-                          <option value="google">Google Básico / Cloud (Gratis o Premium si hay API Key)</option>
-                          <option value="gemini">Gemini Premium (Más lento, Alta Calidad)</option>
-                          <option value="browser">Navegador Local (Instantáneo, Web Speech API)</option>
-                        </select>
-                      </label>
-                      
-                      {engine === 'gemini' && (
-                        <label className="flex flex-col">
-                          <span className="font-bold mb-1">Modelo de Voz (Gemini TTS)</span>
-                          <select 
-                            className="win-border-inset p-1 bg-white" 
-                            value={voiceName} 
-                            onChange={(e) => setVoiceName(e.target.value)}
-                          >
-                            <option value="Puck">Puck (Masculino, Profundo)</option>
-                            <option value="Charon">Charon (Masculino, Grave)</option>
-                            <option value="Fenrir">Fenrir (Masculino)</option>
-                            <option value="Aoede">Aoede (Femenino)</option>
-                            <option value="Kore">Kore (Femenino)</option>
-                          </select>
-                        </label>
-                      )}
+                <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 max-h-[380px]">
+                   {/* Language block */}
+                   <fieldset className="win-border-inset p-2.5 bg-white">
+                      <legend className="bg-win-gray px-1 font-bold">Idioma de Respuestas / Output Language</legend>
+                      <div className="flex flex-col gap-2 mt-1">
+                         <label className="flex flex-col">
+                           <span className="font-bold mb-1">Seleccionar Idioma</span>
+                           <select 
+                             className="win-border-inset p-1 bg-white text-xs outline-none" 
+                             value={appLanguage} 
+                             onChange={(e) => {
+                               setAppLanguage(e.target.value);
+                               localStorage.setItem('app_language', e.target.value);
+                             }}
+                           >
+                             <option value="es">Español (Peruvian Criollo Roast)</option>
+                             <option value="en">English (Sarcastic ex-Silicon Valley Designer)</option>
+                           </select>
+                         </label>
+                      </div>
+                   </fieldset>
 
-                      {engine === 'google' && (
-                        <label className="flex flex-col">
-                          <span className="font-bold mb-1">Acento (Google TTS)</span>
-                          <select 
-                            className="win-border-inset p-1 bg-white" 
-                            value={lang} 
-                            onChange={(e) => setLang(e.target.value)}
-                          >
-                            <option value="es-419">Latinoamericano Neutral</option>
-                            <option value="es-ES">España</option>
-                            <option value="es-MX">México</option>
-                            <option value="es-AR">Argentina</option>
-                            <option value="es-US">Estados Unidos (Español)</option>
-                          </select>
-                        </label>
-                      )}
+                   <fieldset className="win-border-inset p-2.5 bg-white">
+                      <legend className="bg-win-gray px-1 font-bold">Llaves de API (Seguridad y Privacidad)</legend>
+                      <div className="flex flex-col gap-2 mt-1">
+                         <div className="text-[10px] text-red-700 leading-tight mb-1 font-bold">
+                           * Si eres usuario público, debes ingresar tu propia Gemini API Key para los análisis premium.
+                         </div>
+                         <label className="flex flex-col gap-0.5">
+                           <span className="font-bold">Tu API Key de Gemini:</span>
+                           <input 
+                             type="password" 
+                             placeholder="Ingresa tu llave AIzaSy..." 
+                             className="win-border-inset p-1 bg-white font-mono text-xs"
+                             value={customGeminiKey}
+                             onChange={(e) => {
+                               setCustomGeminiKey(e.target.value);
+                               sessionStorage.setItem('custom_gemini_key', e.target.value);
+                             }}
+                           />
+                         </label>
+                         <label className="flex flex-col gap-0.5">
+                           <span className="font-bold">Clave de Acceso Administrador (Opcional):</span>
+                           <input 
+                             type="password" 
+                             placeholder="Bypassear API Key si eres dueño..." 
+                             className="win-border-inset p-1 bg-white font-mono text-xs"
+                             value={adminAccessCode}
+                             onChange={(e) => {
+                               setAdminAccessCode(e.target.value);
+                               localStorage.setItem('admin_access_code', e.target.value);
+                             }}
+                           />
+                         </label>
+                      </div>
+                   </fieldset>
 
-                      {engine === 'browser' && (
-                        <label className="flex flex-col">
-                          <span className="font-bold mb-1">Voz Local del Navegador</span>
-                          <select 
-                            className="win-border-inset p-1 bg-white text-xs" 
-                            value={browserVoiceURI} 
-                            onChange={(e) => setBrowserVoiceURI(e.target.value)}
-                          >
-                            <option value="">Automático (Prioriza macOS Premium/Enhanced)</option>
-                            {voices.slice().sort((a, b) => {
-                              const aEs = a.lang.toLowerCase().startsWith('es');
-                              const bEs = b.lang.toLowerCase().startsWith('es');
-                              if (aEs && !bEs) return -1;
-                              if (!aEs && bEs) return 1;
-                              return a.name.localeCompare(b.name);
-                            }).map(v => (
-                              <option key={v.voiceURI} value={v.voiceURI}>
-                                {v.lang.toLowerCase().startsWith('es') ? '🇪🇸 ' : '🌐 '} {v.name} ({v.lang})
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                   </div>
-                </fieldset>
+                   <fieldset className="win-border-inset p-2.5 bg-white">
+                      <legend className="bg-win-gray px-1 font-bold">Voz y Tono</legend>
+                      <div className="flex flex-col gap-2 mt-1">
+                         <label className="flex flex-col">
+                           <span className="font-bold mb-1">Voz Local del Navegador (100% Gratuito)</span>
+                           <select 
+                             className="win-border-inset p-1 bg-white text-xs" 
+                             value={browserVoiceURI} 
+                             onChange={(e) => setBrowserVoiceURI(e.target.value)}
+                           >
+                             <option value="">Automático (Prioriza macOS Premium/Enhanced)</option>
+                             {voices.slice().sort((a, b) => {
+                               const aEs = a.lang.toLowerCase().startsWith('es');
+                               const bEs = b.lang.toLowerCase().startsWith('es');
+                               if (aEs && !bEs) return -1;
+                               if (!aEs && bEs) return 1;
+                               return a.name.localeCompare(b.name);
+                             }).map(v => (
+                               <option key={v.voiceURI} value={v.voiceURI}>
+                                 {v.lang.toLowerCase().startsWith('es') ? '🇪🇸 ' : '🌐 '} {v.name} ({v.lang})
+                               </option>
+                             ))}
+                           </select>
+                         </label>
+                      </div>
+                   </fieldset>
 
-                <fieldset className="win-border-inset p-3 bg-white flex-1">
-                   <legend className="bg-win-gray px-1 font-bold">Instrucciones Adicionales</legend>
-                   <div className="flex flex-col gap-2 mt-2 h-full">
-                      <label className="flex flex-col h-full">
-                        <span className="mb-1 text-xs text-gray-700">Dile a Arthur cómo debe comportarse o con qué acento hablar (ej. "Habla con dejo argentino", "Usa spanglish excesivo").</span>
-                        <textarea 
-                          className="win-border-inset p-1 resize-none h-24"
-                          placeholder="Ej: Habla con acento argentino che"
-                          value={customInstructions}
-                          onChange={(e) => setCustomInstructions(e.target.value)}
-                        />
-                      </label>
-                   </div>
-                </fieldset>
+                   <fieldset className="win-border-inset p-2.5 bg-white">
+                      <legend className="bg-win-gray px-1 font-bold">Instrucciones Adicionales</legend>
+                      <div className="flex flex-col gap-2 mt-1">
+                         <label className="flex flex-col">
+                           <span className="mb-1 text-[10px] text-gray-700">Dile a Arthur cómo debe comportarse o con qué acento hablar (ej. "Habla con dejo argentino", "Usa spanglish excesivo").</span>
+                           <textarea 
+                             className="win-border-inset p-1 resize-none h-14"
+                             placeholder="Ej: Habla con acento argentino che"
+                             value={customInstructions}
+                             onChange={(e) => setCustomInstructions(e.target.value)}
+                           />
+                         </label>
+                      </div>
+                   </fieldset>
+                </div>
                 
-                <div className="flex justify-end mt-auto">
+                <div className="flex justify-end mt-1 pt-2 border-t border-gray-300">
                    <button className="win-btn font-bold px-6 py-1" onClick={() => closeWindow('settings')}>Aceptar</button>
                 </div>
              </div>
-          </WinWindow>
+        </WinWindow>
         )}
 
-        {isAnalyzerOpen && (
+        {isAnalyzerOpen && !minimizedWindows.includes('analyzer') && (
           <WinWindow 
-             id="analyzer" title="UX_ANALYZER.EXE (Tóxico Mode)" icon={<Terminal size={12}/>}
+             id="analyzer" title="UX ANALyzer (Tóxico Mode)" icon={<Terminal size={12}/>}
              isActive={activeWindow === 'analyzer'} onFocus={() => setActiveWindow('analyzer')}
              onClose={() => closeWindow('analyzer')}
+             onMinimize={() => minimizeWindow('analyzer')}
              defaultPosition={{x: 140, y: 30}} width={600} height={520}
              className={isEnraged ? 'animate-rage border-4 border-red-500' : ''}
           >
@@ -503,12 +503,19 @@ export default function App() {
                messages={messages} 
                onClear={handleClearHistory}
                onSpeak={speakText}
+               onStopSpeaking={stopSpeaking}
                isSpeaking={isSpeaking}
                onEnrage={() => {
                  setIsEnraged(true);
                  setTimeout(() => setIsEnraged(false), 500);
                }}
                customInstructions={customInstructions}
+               onLocalInsult={triggerLocalArthurInsult}
+               customGeminiKey={customGeminiKey} freeChatsCount={freeChatsCount}
+               onSaveGeminiKey={(key) => {
+                 setCustomGeminiKey(key);
+                 sessionStorage.setItem('custom_gemini_key', key);
+               }}
              />
           </WinWindow>
         )}
@@ -523,14 +530,17 @@ export default function App() {
         </button>
         <div className="h-full w-0 border-l border-gray-400 border-r border-[#ffffff] my-[2px]"></div>
         <div className="flex items-center gap-1 flex-1 px-1 h-full py-0.5 overflow-hidden">
-          {openWindows.map(w => (
-            <button key={w} onClick={() => openWindow(w)} 
-              className={`win-btn text-left flex items-center px-2 py-0 min-w-24 max-w-40 truncate h-6 ${activeWindow === w ? 'bg-gray-300' : ''}`}
-              style={activeWindow === w ? {boxShadow: 'inset 1px 1px #000, inset -1px -1px #dfdfdf', paddingTop: 2, paddingLeft: 8} : {}}
-            >
-              <div className="w-full truncate">{w === 'analyzer' ? 'UX_ANALYZER' : 'Panel de ...'}</div>
-            </button>
-          ))}
+          {openWindows.map(w => {
+            const isPressed = activeWindow === w && !minimizedWindows.includes(w);
+            return (
+              <button key={w} onClick={() => toggleWindowMinimizeRestore(w)} 
+                className={`win-btn text-left flex items-center px-2 py-0 min-w-24 max-w-40 truncate h-6 ${isPressed ? 'bg-gray-300' : ''}`}
+                style={isPressed ? {boxShadow: 'inset 1px 1px #000, inset -1px -1px #dfdfdf', paddingTop: 2, paddingLeft: 8} : {}}
+              >
+                <div className="w-full truncate">{w === 'analyzer' ? 'UX ANALyzer' : 'Panel de ...'}</div>
+              </button>
+            );
+          })}
         </div>
         <div className="win-border-inset px-2 flex flex-col justify-center h-6 mr-1 bg-win-gray text-black font-mono relative top-[1px]">
           {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}

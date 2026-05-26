@@ -8,6 +8,7 @@ interface WinWindowProps {
   isActive: boolean;
   onFocus: () => void;
   onClose: () => void;
+  onMinimize?: () => void;
   children: React.ReactNode;
   defaultPosition?: { x: number; y: number };
   width?: number | string;
@@ -15,7 +16,7 @@ interface WinWindowProps {
   className?: string;
 }
 
-export default function WinWindow({ id, title, icon, isActive, onFocus, onClose, children, defaultPosition = { x: 50, y: 50 }, width = 500, height = 'auto', className = '' }: WinWindowProps) {
+export default function WinWindow({ id, title, icon, isActive, onFocus, onClose, onMinimize, children, defaultPosition = { x: 50, y: 50 }, width = 500, height = 'auto', className = '' }: WinWindowProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -53,7 +54,15 @@ export default function WinWindow({ id, title, icon, isActive, onFocus, onClose,
           <span className="truncate max-w-[180px] sm:max-w-none">{title}</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <button className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[8px]" style={{padding:0}} disabled><Minus size={10} /></button>
+          <button 
+            type="button"
+            className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[8px]" 
+            style={{padding:0}} 
+            onClick={(e) => { e.stopPropagation(); onMinimize?.(); }}
+            title="Minimizar"
+          >
+            <Minus size={10} />
+          </button>
           <button className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[8px]" style={{padding:0}} disabled><Square size={8} strokeWidth={3} /></button>
           <button className="win-btn h-3.5 w-4 font-bold flex items-center justify-center p-0 text-[10px]" style={{padding:0, marginLeft: 2}} onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={10}/></button>
         </div>
