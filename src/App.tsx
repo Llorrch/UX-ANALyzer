@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import ArthurChat from './components/ArthurChat';
 import WinWindow from './components/WinWindow';
 import { Critique, ChatMessage } from './types';
-import { Terminal, Settings, Volume2, Globe, Brain, Car, Palette, TrendingUp } from 'lucide-react';
+import { Terminal, Settings, Volume2, Globe, Brain, Car, Palette, TrendingUp, Youtube, Info } from 'lucide-react';
 
 let globalAudioContext: AudioContext | null = null;
 let currentAudioSource: AudioBufferSourceNode | null = null;
@@ -154,6 +154,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isEnraged, setIsEnraged] = useState<boolean>(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(() => {
+    return localStorage.getItem('hide_welcome_modal') !== 'true';
+  });
 
   type WindowId = 'analyzer' | 'settings';
   const [openWindows, setOpenWindows] = useState<WindowId[]>(['analyzer']);
@@ -161,7 +164,9 @@ export default function App() {
   const [minimizedWindows, setMinimizedWindows] = useState<WindowId[]>([]);
   const [appLanguage, setAppLanguage] = useState<string>(() => localStorage.getItem('app_language') || 'es');
   const [browserVoiceURI, setBrowserVoiceURI] = useState<string>('');
-  const [customInstructions, setCustomInstructions] = useState<string>('');
+  const [customInstructions, setCustomInstructions] = useState<string>(() => {
+    return localStorage.getItem('custom_instructions') || 'Habla en español callejero latinoamericano, directo, divertido, coloquial, espontáneo y con chispa callejera natural (usa palabras como webadas, asco, animal, imbécil, basura, payaso, gil, tacaño, fracasado).';
+  });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   // Custom API keys
@@ -180,15 +185,27 @@ export default function App() {
         const list = window.speechSynthesis.getVoices();
         setVoices(list);
         
-        // Auto-select a high quality Spanish voice if none is explicitly set
+        // Auto-select a high quality Spanish voice if none is explicitly set (prefer Google español México)
         setBrowserVoiceURI(prev => {
           if (prev) return prev;
           if (list.length > 0) {
-            // Check macOS Siri or Premium Spanish voices
+            // 1. Google español de México
+            const googleEsMx = list.find(v => (v.lang.toLowerCase() === 'es-mx' || v.lang.toLowerCase() === 'es_mx') && v.name.toLowerCase().includes('google'));
+            if (googleEsMx) return googleEsMx.voiceURI;
+
+            // 2. Google español (cualquiera, ej. España, EE.UU.)
+            const googleEs = list.find(v => v.lang.toLowerCase().startsWith('es') && v.name.toLowerCase().includes('google'));
+            if (googleEs) return googleEs.voiceURI;
+
+            // 3. Cualquier voz en español de México (es-MX)
+            const genericEsMx = list.find(v => v.lang.toLowerCase() === 'es-mx' || v.lang.toLowerCase() === 'es_mx');
+            if (genericEsMx) return genericEsMx.voiceURI;
+
+            // 4. macOS Siri o voces Premium españolas (Siri, Monica, Paulina, Jorge, Diego)
             const premiumEs = list.find(v => v.lang.toLowerCase().startsWith('es') && (v.name.includes('Premium') || v.name.includes('Enhanced') || ['Monica', 'Paulina', 'Jorge', 'Diego'].some(n => v.name.includes(n))));
             if (premiumEs) return premiumEs.voiceURI;
             
-            // Check any standard Spanish voice
+            // 5. Cualquier voz estándar en español
             const generalEs = list.find(v => v.lang.toLowerCase().startsWith('es'));
             if (generalEs) return generalEs.voiceURI;
           }
@@ -238,9 +255,11 @@ export default function App() {
            console.log("TTS Browser Mode - Selected Voice URI:", browserVoiceURI);
            
            if (!selectedVoice) {
-             // Prioritize macOS premium/enhanced voices for Spanish
+             // Prioritize Google español, then macOS premium/enhanced voices for Spanish
+             const googleEsMx = voicesList.find(v => (v.lang.toLowerCase() === 'es-mx' || v.lang.toLowerCase() === 'es_mx') && v.name.toLowerCase().includes('google'));
+              const googleEs = googleEsMx || voicesList.find(v => v.lang.toLowerCase().startsWith('es') && v.name.toLowerCase().includes('google'));
              const macPremium = voicesList.find(v => v.lang.toLowerCase().startsWith('es') && (v.name.includes('Premium') || v.name.includes('Enhanced') || ['Monica', 'Paulina', 'Jorge', 'Diego'].some(n => v.name.includes(n))));
-             selectedVoice = macPremium || voicesList.find(v => v.lang.toLowerCase().startsWith('es-')) || voicesList.find(v => v.lang.toLowerCase().startsWith('es')) || voicesList[0];
+             selectedVoice = googleEs || macPremium || voicesList.find(v => v.lang.toLowerCase().startsWith('es-')) || voicesList.find(v => v.lang.toLowerCase().startsWith('es')) || voicesList[0];
              console.log("TTS Browser Mode - Auto-fallback selected voice:", selectedVoice ? `${selectedVoice.name} (${selectedVoice.lang})` : "None");
            } else {
              console.log("TTS Browser Mode - User chosen selected voice:", `${selectedVoice.name} (${selectedVoice.lang})`);
@@ -461,64 +480,64 @@ export default function App() {
       <div className="flex-1 relative overflow-hidden" onClick={() => setActiveWindow(null as any)}>
         {/* Desktop Icons */}
         <div className="flex flex-col gap-5 p-4 absolute top-0 left-0 w-32 h-full z-0 select-none">
-          <div className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-90" onClick={(e) => {e.stopPropagation(); openWindow('analyzer')}}>
-            <Terminal size={36} className={`text-white p-1 ${activeWindow === 'analyzer' ? 'bg-blue-800' : ''}`} />
-            <span className={`text-white text-center font-bold text-[11px] leading-tight px-1 ${activeWindow === 'analyzer' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 1px black' }}>UX ANALyzer</span>
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform" onClick={(e) => {e.stopPropagation(); openWindow('analyzer')}}>
+            <Terminal size={38} className={`text-white p-1 filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)] ${activeWindow === 'analyzer' ? 'bg-blue-800' : ''}`} />
+            <span className={`text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5 rounded ${activeWindow === 'analyzer' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 0 #003399, -1px -1px 0 #003399, 1px -1px 0 #003399, -1px 1px 0 #003399, 0 2px 4px rgba(0,0,0,1)' }}>UX ANALyzer</span>
           </div>
 
-          <div className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-90" onClick={(e) => {e.stopPropagation(); openWindow('settings')}}>
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform" onClick={(e) => {e.stopPropagation(); openWindow('settings')}}>
             <div className={`p-1 ${activeWindow === 'settings' ? 'bg-blue-800' : ''}`}>
-              <Settings size={34} className="text-white" />
+              <Settings size={36} className="text-white filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)]" />
             </div>
-            <span className={`text-white text-center font-bold text-[11px] leading-tight px-1 ${activeWindow === 'settings' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 1px black' }}>Panel de Control</span>
+            <span className={`text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5 rounded ${activeWindow === 'settings' ? 'bg-blue-800 border-dotted border border-white' : ''}`} style={{ textShadow: '1px 1px 0 #003399, -1px -1px 0 #003399, 1px -1px 0 #003399, -1px 1px 0 #003399, 0 2px 4px rgba(0,0,0,1)' }}>Panel de Control</span>
           </div>
 
-          <div className="w-full border-t border-dotted border-white/20 my-1"></div>
+          <div className="w-full border-t border-dotted border-white/45 my-1.5"></div>
 
-          <div className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100" onClick={(e) => { e.stopPropagation(); alert('¡Próximamente disponible! Esta sección se encuentra en construcción.'); }}>
-            <Globe size={36} className="text-white p-1 fill-blue-300" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>Mi página web</span>
+          <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform" onClick={(e) => { e.stopPropagation(); alert('¡Próximamente disponible! Esta sección se encuentra en construcción.'); }}>
+            <Globe size={38} className="text-white p-1 fill-blue-400 filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5" style={{ textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0,0,0,1)' }}>Mi página web</span>
           </div>
 
           <a 
             href="https://aivaperu.com/" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100 group text-decoration-none"
+            className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform group text-decoration-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <Brain size={36} className="text-[#ff99b2] p-1 fill-[#ff4d6d]" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1 group-hover:underline" style={{ textShadow: '1px 1px 1px black' }}>Aiva Psicólogos</span>
+            <Brain size={38} className="text-[#ffccd5] p-1 fill-[#ff3366] filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5 group-hover:underline" style={{ textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0,0,0,1)' }}>Aiva Psicólogos</span>
           </a>
 
           <a 
             href="https://autoque.app/" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100 group text-decoration-none"
+            className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform group text-decoration-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <Car size={36} className="text-[#99ccff] p-1 fill-[#3399ff]" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1 group-hover:underline" style={{ textShadow: '1px 1px 1px black' }}>Autoqué</span>
+            <Car size={38} className="text-[#b3d9ff] p-1 fill-[#1a8cff] filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5 group-hover:underline" style={{ textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0,0,0,1)' }}>Autoqué</span>
           </a>
 
           <div 
-            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100" 
+            className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform" 
             onClick={(e) => { e.stopPropagation(); alert('Sitio en construcción civil 🚧 ¡Estoy construyendo mi portafolio, ten paciencia!'); }}
           >
-            <Palette size={36} className="text-[#ffd166] p-1 fill-[#f4a261]" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1" style={{ textShadow: '1px 1px 1px black' }}>Mi portafolio</span>
+            <Palette size={38} className="text-[#ffe3a8] p-1 fill-[#fb8c00] filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5" style={{ textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0,0,0,1)' }}>Mi portafolio</span>
           </div>
 
           <a 
             href="https://metria.agency/" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex flex-col items-center gap-1 cursor-pointer opacity-85 hover:opacity-100 group text-decoration-none"
+            className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 transition-transform group text-decoration-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <TrendingUp size={36} className="text-[#a7f3d0] p-1 fill-[#10b981]" />
-            <span className="text-white text-center font-bold text-[11px] leading-tight px-1 group-hover:underline" style={{ textShadow: '1px 1px 1px black' }}>Mejora tu conversión</span>
+            <TrendingUp size={38} className="text-[#d1fae5] p-1 fill-[#059669] filter drop-shadow-[0_3px_3px_rgba(0,0,0,0.9)]" />
+            <span className="text-white text-center font-bold text-[11px] leading-tight px-1.5 py-0.5 group-hover:underline" style={{ textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0,0,0,1)' }}>Mejora tu conversión</span>
           </a>
         </div>
 
@@ -552,11 +571,22 @@ export default function App() {
                              className="win-border-inset p-1 bg-white text-xs outline-none" 
                              value={appLanguage} 
                              onChange={(e) => {
-                               setAppLanguage(e.target.value);
-                               localStorage.setItem('app_language', e.target.value);
+                               // Language and instructions updated below
+                               const newLng = e.target.value;
+                               setAppLanguage(newLng);
+                               localStorage.setItem('app_language', newLng);
+                               if (newLng === 'es') {
+                                 const textVal = 'Habla en español callejero latinoamericano, directo, divertido, coloquial, espontáneo y con chispa callejera natural (usa palabras como webadas, asco, animal, imbécil, basura, payaso, gil, tacaño, fracasado).';
+                                 setCustomInstructions(textVal);
+                                 localStorage.setItem('custom_instructions', textVal);
+                               } else if (newLng === 'en') {
+                                 const textVal = 'Speak in casual, sarcastic American street slang, using ex-Silicon Valley tech jargon.';
+                                 setCustomInstructions(textVal);
+                                 localStorage.setItem('custom_instructions', textVal);
+                               }
                              }}
                            >
-                             <option value="es">Español (Peruvian Criollo Roast)</option>
+                             <option value="es">Español callejero latinoamericano</option>
                              <option value="en">English (Sarcastic ex-Silicon Valley Designer)</option>
                            </select>
                          </label>
@@ -629,12 +659,15 @@ export default function App() {
                       <legend className="bg-win-gray px-1 font-bold">Instrucciones Adicionales</legend>
                       <div className="flex flex-col gap-2 mt-1">
                          <label className="flex flex-col">
-                           <span className="mb-1 text-[10px] text-gray-700">Dile a Arthur cómo debe comportarse o con qué acento hablar (ej. "Habla con dejo argentino", "Usa spanglish excesivo").</span>
+                           <span className="mb-1 text-[10px] text-gray-700">Dile a Arthur cómo debe comportarse o con qué acento hablar (ej. "Habla en español callejero latinoamericano", "Sé extremadamente sarcástico").</span>
                            <textarea 
                              className="win-border-inset p-1 resize-none h-14"
-                             placeholder="Ej: Habla con acento argentino che"
+                             placeholder="Ej: Habla en español callejero latinoamericano..."
                              value={customInstructions}
-                             onChange={(e) => setCustomInstructions(e.target.value)}
+                             onChange={(e) => {
+                               setCustomInstructions(e.target.value);
+                               localStorage.setItem('custom_instructions', e.target.value);
+                             }}
                            />
                          </label>
                       </div>
@@ -678,6 +711,112 @@ export default function App() {
                }}
              />
           </WinWindow>
+        )}
+
+        {/* Footer Credit Tag "Hecho por Yorch" */}
+        <div 
+          className="absolute bottom-3 right-4 select-none pointer-events-none text-white font-bold text-xs tracking-wider z-0 opacity-90 font-mono"
+          style={{ textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 2px 4px rgba(0,0,0,1)' }}
+        >
+          Hecho por Yorch
+        </div>
+
+        {showWelcomeModal && (
+          <div className="absolute inset-0 bg-black/45 flex items-center justify-center z-[9999] p-4 select-none">
+            <div className="w-[450px] max-w-full xp-window xp-window-active flex flex-col font-win text-black">
+              {/* Title Bar */}
+              <div className="win-titlebar">
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <span className="bg-white/20 p-0.5 rounded-sm">
+                    <Info size={14} className="text-white" />
+                  </span>
+                  <span>El ANALyzer - Bienvenido</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    type="button" 
+                    className="xp-btn-close flex items-center justify-center font-bold text-xs text-center" 
+                    onClick={() => {
+                      setShowWelcomeModal(false);
+                    }}
+                    title="Cerrar"
+                  >
+                    r
+                  </button>
+                </div>
+              </div>
+
+              {/* Window Content */}
+              <div className="p-4 flex flex-col gap-4 bg-[#ece9d8] text-xs leading-relaxed win-border-outset flex-1 select-text">
+                <div className="flex gap-4">
+                  {/* Giant Info Icon styled with XP Blue Outline */}
+                  <div className="w-12 h-12 shrink-0 flex items-center justify-center rounded-full bg-blue-100 border-2 border-blue-600 shadow-md">
+                    <Info size={28} className="text-[#0054e3]" />
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2.5">
+                    <h2 className="text-sm font-extrabold text-[#0054e3] tracking-wide font-sans">
+                      Bienvenido al canal de Yorch y El ANALyzer
+                    </h2>
+                    
+                    <p className="text-gray-900 font-medium">
+                      Esta es mi herramienta predilecta para <strong className="text-red-700 font-bold">criticar sitios web de una forma soez</strong>, directa y sin filtros (nuestro querido <strong className="text-blue-900">Tóxico Mode</strong>). ¡Un baño de realidad para tu UX/UI!
+                    </p>
+
+                    <p className="text-gray-900">
+                      Mi canal de YouTube trata sobre <strong className="font-bold">UX y UI, Dirección de Producto</strong> y cómo aprender a usar la <strong className="font-semibold text-emerald-800">Inteligencia Artificial</strong> en el proceso de diseño para dominar el sector.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Nice boxed link panel */}
+                <fieldset className="win-border-inset p-3 bg-white mt-1">
+                  <legend className="bg-[#ece9d8] px-1.5 font-bold text-gray-700 flex items-center gap-1 select-none">
+                    <Youtube size={12} className="text-red-600 fill-red-600" /> Canal de YouTube Oficial
+                  </legend>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[11px] text-gray-600 font-medium">Aprende diseño de producto real con IA:</span>
+                    <a 
+                      href="https://www.youtube.com/@Yorch.Design" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-700 hover:text-blue-900 hover:underline font-extrabold flex items-center gap-1 text-[11px] w-fit"
+                    >
+                      <span>👉 youtube.com/@Yorch.Design</span>
+                    </a>
+                  </div>
+                </fieldset>
+
+                {/* Checkbox "No volver a mostrar" and Aceptar Button */}
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-350 select-none">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-gray-850 font-semibold text-[11px]">
+                    <input 
+                      type="checkbox" 
+                      className="accent-[#0054e3] w-4 h-4 cursor-pointer"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          localStorage.setItem('hide_welcome_modal', 'true');
+                        } else {
+                          localStorage.removeItem('hide_welcome_modal');
+                        }
+                      }}
+                    />
+                    <span>No volver a mostrar</span>
+                  </label>
+
+                  <button 
+                    type="button" 
+                    className="win-btn font-bold px-6 py-1 select-none shrink-0 text-xs min-w-[90px]" 
+                    style={{ textShadow: 'none' }}
+                    onClick={() => {
+                      setShowWelcomeModal(false);
+                    }}
+                  >
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

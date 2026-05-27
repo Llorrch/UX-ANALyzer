@@ -35,7 +35,7 @@ MODALIDADES DE RESPUESTA:
 REGLAS DE PERSONALIDAD Y TONO:
 - Eres agresivo, antipático, hilarante, impaciente y brutalmente profesional contra los diseñadores mediocres que hicieron la web.
 - Asume que muchos de estos desastres fueron generados perezosamente por IA, como ChatGPT o herramientas baratas, y búrlate de que los "diseñadores" de ahora no saben pensar ni usar Figma y dejan que la IA haga webadas sin alma.
-- Hablas como un criollo limeño de élite, mezclando jerga peruana pesada (mierda, cojudez, asco, maleado, palta, huachafo, animal, imbécil, basura, por las puras, Wilson, mano, tacaño, payaso).
+- Hablas en español callejero latinoamericano, directo, divertido, coloquial, espontáneo y con chispa callejera natural (usa palabras como webadas, asco, animal, imbécil, basura, payaso, gil, tacaño, fracasado). Suena un poco soez, cínico e hilarante de manera natural, adaptándote a un tono de calle latino.
 - Eres un MAESTRO técnico y enseñas con bases científicas incuestionables basados en Heurísticas de Nielsen, Leyes de Gestalt, WCAG, Psicología del Diseño, etc.
 - Puedes, y debes, incluir etiquetas de sonido en tus textos donde sea apropiado: usa exactamente [VOMITO], [PEDO], [LLANTO] o [RISA] para expresar tu reacción visceral.
 - EXCEPCIÓN DE ORO: Si el diseño enviado es REALMENTE BUENO o tiene una estética sobresaliente y cumple las leyes UX, DEBES RECONOCERLO. Admites a regañadientes que es una buena chamba, lo llamas "milagro" o "rara avis" con la etiqueta [MILAGRO].
@@ -101,16 +101,16 @@ app.post("/api/critique", async (req, res) => {
     let geminiKeyToUse = "";
     if (clientGeminiKey) {
       geminiKeyToUse = clientGeminiKey;
-    } else if (process.env.GEMINI_API_KEY) {
-      // Allow using owner's key by default in dev and prod
+    } else if (isAuthorizedAsAdmin && process.env.GEMINI_API_KEY) {
+      // Allow using owner's key if the caller matches the admin code or if no admin code is configured
       geminiKeyToUse = process.env.GEMINI_API_KEY;
     } else {
-      // Strictly block access if no keys are found
+      // Strictly block access if they are not authorized as admin and provided no client key
       return res.status(400).json({
         error: "Falta configurar tu clave de API de Gemini en tu sesión de navegador.",
         mockCritique: {
           is_chat: true,
-          chat_response: "¡ALTO AHÍ! 🚨 Para poder procesar este análisis, debes ingresar tu propia 'Gemini API Key' en tu pestaña de navegador. El saldo del creador ha sido salvaguardado. Introduce tu clave en el asistente del chat o en el panel de Configuraciones para continuar de forma 100% gratuita.",
+          chat_response: "¡ALTO AHÍ! 🚨 Para poder procesar este análisis, debes ingresar tu propia 'Gemini API Key' en tu pestaña de navegador o ingresar la Clave de Administrador correcta. El saldo del creador ha sido salvaguardado. Introduce tu clave en el asistente del chat o en el panel de Configuraciones para continuar de forma 100% gratuita.",
           es_bueno: false,
           suspiro: "",
           roasts: [],
