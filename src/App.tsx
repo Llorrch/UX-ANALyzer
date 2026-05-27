@@ -173,9 +173,18 @@ export default function App() {
   const [customGeminiKey, setCustomGeminiKey] = useState<string>(() => sessionStorage.getItem('custom_gemini_key') || '');
   const [adminAccessCode, setAdminAccessCode] = useState<string>(() => localStorage.getItem('admin_access_code') || '');
   
-  // Free chats counter (up to 5 free chats with the creator's key per device)
+  // Free chats counter (up to 25 free chats with the creator's key per device per day)
   const [freeChatsCount, setFreeChatsCount] = useState<number>(() => {
-    return Number(localStorage.getItem('free_chats_count')) || 0;
+    const storedCount = localStorage.getItem('free_chats_count');
+    const storedDate = localStorage.getItem('free_chats_date');
+    const currentDate = new Date().toDateString();
+    
+    if (storedDate !== currentDate) {
+      localStorage.setItem('free_chats_date', currentDate);
+      localStorage.setItem('free_chats_count', '0');
+      return 0;
+    }
+    return Number(storedCount) || 0;
   });
 
   // Initialize Speech Synthesis voice loading with reactive events (important for macOS and Chrome)
@@ -380,6 +389,8 @@ export default function App() {
       // Increment free chats count if using default/creator key
       if (!customGeminiKey) {
         setFreeChatsCount((prev) => {
+          const currentDate = new Date().toDateString();
+          localStorage.setItem('free_chats_date', currentDate);
           const nextVal = prev + 1;
           localStorage.setItem('free_chats_count', String(nextVal));
           return nextVal;

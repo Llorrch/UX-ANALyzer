@@ -160,7 +160,7 @@ export default function ArthurChat({
     onSpeak(`${critique.suspiro}. ${roastsText}. ${critique.veredicto}`);
   };
 
-  const freeLimitExceeded = !customGeminiKey && freeChatsCount >= 5;
+  const freeLimitExceeded = !customGeminiKey && freeChatsCount >= 25;
 
   if (freeLimitExceeded) {
     const handleSaveKey = (e: FormEvent) => {
