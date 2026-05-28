@@ -766,15 +766,15 @@ export default function App() {
                   </div>
                   <div className="flex-1 flex flex-col gap-2.5">
                     <h2 className="text-sm font-extrabold text-[#0054e3] tracking-wide font-sans">
-                      Bienvenido al canal de Yorch y El ANALyzer
+                      ¡Bienvenido usuario!
                     </h2>
                     
                     <p className="text-gray-900 font-medium">
-                      Esta es mi herramienta predilecta para <strong className="text-red-700 font-bold">criticar sitios web de una forma soez</strong>, directa y sin filtros (nuestro querido <strong className="text-blue-900">Tóxico Mode</strong>). ¡Un baño de realidad para tu UX/UI!
+                      Esta es mi herramienta predilecta para <strong className="text-red-700 font-bold">criticar sitios web de una forma soez</strong>, directa y sin filtros (nuestro querido <strong className="text-blue-900">Tóxico Mode</strong>). ¡Un baño de realidad para tu UX/UI! Si necesitas un poco de feedback para tus diseños úsame, trataré de no hacerte llorar mucho.
                     </p>
 
                     <p className="text-gray-900">
-                      Mi canal de YouTube trata sobre <strong className="font-bold">UX y UI, Dirección de Producto</strong> y cómo aprender a usar la <strong className="font-semibold text-emerald-800">Inteligencia Artificial</strong> en el proceso de diseño para dominar el sector.
+                      Soy <strong className="font-bold">Yorch</strong>, el creador de esta herramienta, mi canal de YouTube trata sobre <strong className="font-semibold text-gray-800">UX y UI, Dirección de Producto</strong> y cómo aprender a usar la <strong className="font-semibold text-emerald-800">Inteligencia Artificial</strong> en el proceso de diseño.
                     </p>
                   </div>
                 </div>
@@ -782,18 +782,32 @@ export default function App() {
                 {/* Nice boxed link panel */}
                 <fieldset className="win-border-inset p-3 bg-white mt-1">
                   <legend className="bg-[#ece9d8] px-1.5 font-bold text-gray-700 flex items-center gap-1 select-none">
-                    <Youtube size={12} className="text-red-600 fill-red-600" /> Canal de YouTube Oficial
+                    Canal y Sitio Web Oficial
                   </legend>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] text-gray-600 font-medium">Aprende diseño de producto real con IA:</span>
-                    <a 
-                      href="https://www.youtube.com/@Yorch.Design" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-blue-700 hover:text-blue-900 hover:underline font-extrabold flex items-center gap-1 text-[11px] w-fit"
-                    >
-                      <span>👉 youtube.com/@Yorch.Design</span>
-                    </a>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] text-gray-600 font-medium">Aprende diseño de producto real con IA:</span>
+                      <a 
+                        href="https://www.youtube.com/@Yorch.Design" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-700 hover:text-blue-900 hover:underline font-extrabold flex items-center gap-1 text-[11px] w-fit"
+                      >
+                        <Youtube size={12} className="text-red-600 fill-red-600" />
+                        <span>youtube.com/@Yorch.Design</span>
+                      </a>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-t border-gray-200 pt-1.5">
+                      <span className="text-[11px] text-gray-600 font-medium">Visita mi página web:</span>
+                      <a 
+                        href="https://yorch.me" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-700 hover:text-blue-900 hover:underline font-extrabold flex items-center gap-1 text-[11px] w-fit"
+                      >
+                        <span>🌐 yorch.me</span>
+                      </a>
+                    </div>
                   </div>
                 </fieldset>
 
