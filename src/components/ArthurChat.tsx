@@ -67,25 +67,23 @@ export default function ArthurChat({
       return;
     }
 
-    // 2. Heavy File weight limit (1MB)
-    if (file.size > 1024 * 1024) { // 1 MB
-      if (onLocalInsult) {
-        onLocalInsult(
-          `Subió una imagen pesada: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`,
-          "¡¿Más de 1 MB?! ¡Oye, huachafo, ¿acaso tu página está cargada de scripts pesados de Angular del 2012 que pesa una tonelada?! Máximo 1 MB, desecha esa porquería pesada de Wilson, comprímela bien antes de mandármelo, ¡no me satures el servidor con imágenes gigantes!"
-        );
-      } else {
-        alert("Archivo demasiado pesado (máximo 1 MB).");
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    // 3. Image validation fallback
+    // 2. Image validation fallback
     if (!file.type.startsWith('image/')) {
       alert("Solo imágenes, por favor. No me jodas con otros formatos ranciados.");
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
+    }
+
+    // 3. Heavy File check and auto-compress warning
+    const isHeavy = file.size > 1024 * 1024; // 1 MB
+    if (isHeavy) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      if (onLocalInsult) {
+        onLocalInsult(
+          `Subió una imagen pesada: ${file.name} (${sizeMB} MB)`,
+          `¡¿Una captura de ${sizeMB} MB?! ¡Oye, huachafo, ¿acaso crees que mi servidor es un disco duro de Wilson infinito para andar guardando tus cojudeces de imágenes pesadas y obesas sin optimizar?! No te preocupes, como yo soy un MAESTRO del UX y la optimización de performance, he comprimido y re-dimensionado tu imagen basura automáticamente para que pese el mínimo absoluto. ¡Aprende cómo lo hace un verdadero profesional y deja de subir imágenes gigantescas en 4K, so animal!`
+        );
+      }
     }
 
     const reader = new FileReader();
@@ -95,7 +93,8 @@ export default function ArthurChat({
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 1000;
+        // If the original was heavy, let's limit the max dimension to 1000 to drastically reduce size, otherwise 1200
+        const maxDim = isHeavy ? 1000 : 1200;
 
         if (width > maxDim || height > maxDim) {
           if (width > height) {
@@ -112,7 +111,9 @@ export default function ArthurChat({
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          // If the image is heavy, compress it harder (e.g., 0.7 quality), otherwise normal 0.8
+          const quality = isHeavy ? 0.7 : 0.8;
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
           const base64Data = compressedDataUrl.split(',')[1];
           setSelectedImage(base64Data);
           setImageMime('image/jpeg');
